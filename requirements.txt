@@ -1,0 +1,6 @@
+
+Flask==3.0.3
+gunicorn==22.0.0
+reportlab==4.2.2
+psycopg[binary]>=3.2,<4
+
