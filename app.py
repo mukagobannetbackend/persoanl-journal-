@@ -15,7 +15,8 @@ import os
 
 import psycopg
 from psycopg.rows import dict_row
-
+import cloudinary
+import cloudinary.uploader
 
 
 # APPLICATION CONFIGURATION
@@ -36,6 +37,14 @@ if not app.secret_key:
     )
 
 app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024
+
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
 
 
 # --------------------------------------------------
@@ -321,6 +330,7 @@ def logout():
 # SCREENSHOT UPLOADS
 # --------------------------------------------------
 
+
 def save_screenshot(upload, user_id, trade_id, timeframe):
     if not upload or not upload.filename:
         return None
@@ -339,13 +349,16 @@ def save_screenshot(upload, user_id, trade_id, timeframe):
             "Screenshots must be PNG, JPG, JPEG, or WEBP files."
         )
 
-    stored_name = (
-        f"user_{user_id}_trade_{trade_id}_{timeframe}.{extension}"
+    result = cloudinary.uploader.upload(
+        upload,
+        folder="trading-journal",
+        public_id=f"user_{user_id}_trade_{trade_id}_{timeframe}",
+        resource_type="image",
+        overwrite=True,
+        format=extension,
     )
 
-    upload.save(UPLOAD_DIR / stored_name)
-
-    return f"uploads/{stored_name}"
+    return result["secure_url"]
 
 
 # --------------------------------------------------
@@ -454,8 +467,7 @@ def add_trade():
 
                 screenshot_paths.append(path)
 
-                if path:
-                    saved_screenshots.append(UPLOAD_DIR / Path(path).name)
+               
 
             conn.execute(
                 """
@@ -916,4 +928,51 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 5000)),
     )
+
+    import cloudinary
+import cloudinary.uploader
+from cloudinary.utils import cloudinary_url
+
+# Configuration       
+cloudinary.config( 
+    cloud_name = "o7fxxceo", 
+    api_key = "756783285974753", 
+    api_secret = "<your_api_secret>", # Click 'View API Keys' above to copy your API secret
+    secure=True
+)
+
+# Upload an image
+upload_result = cloudinary.uploader.upload("https://res.cloudinary.com/demo/image/upload/getting-started/shoes.jpg",
+                                           public_id="shoes")
+print(upload_result["secure_url"])
+
+# Optimize delivery by resizing and applying auto-format and auto-quality
+optimize_url, _ = cloudinary_url("shoes", fetch_format="auto", quality="auto")
+print(optimize_url)
+
+# Transform the image: auto-crop to square aspect_ratio
+auto_crop_url, _ = cloudinary_url("shoes", width=500, height=500, crop="auto", gravity="auto")
+print(auto_crop_url)
+
+except (KeyError, ValueError) as exc:
+        app.logger.warning("Trade input rejected: %s", exc)
+        flash(f"Please check the required fields: {exc}", "error")
+
+    except psycopg.Error:
+        app.logger.exception("Could not save trade to PostgreSQL.")
+        flash(
+            "The trade could not be saved. Please try again.",
+            "error",
+        )
+
+    except Exception:
+        app.logger.exception("Unexpected error while saving trade.")
+        flash(
+            "The trade could not be saved. Please check the screenshot "
+            "upload and try again.",
+            "error",
+        )
+
+    return redirect(url_for("index"))
+
 
